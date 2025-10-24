@@ -6,7 +6,7 @@
 #include <vector>
 #include <bitset>
 
-static const char version[] = "BL4 Serial Decoder v0.1";
+static const char version[] = "BL4 Serial Decoder v0.2";
 
 
 unsigned char reverseBits(unsigned char b) {
@@ -79,6 +79,18 @@ unsigned int decode_varint(std::string& remaining_string) {
     return std::bitset<16>(data_string).to_ulong();
 }
 
+std::string decode_string(std::string& remaining_string) {
+    std::string output = "";
+    int len = decode_varint(remaining_string);
+    for (int i = 0; i < len; i++) {
+        std::string charbits = remaining_string.substr(0, 7);
+        std::reverse(charbits.begin(), charbits.end());
+        output += static_cast<char>(std::bitset<7>(charbits).to_ulong());
+        remaining_string = remaining_string.substr(7);
+    }
+    return output;
+}
+
 std::string decode_part(std::string& remaining_string) {
     int first_value = decode_varint(remaining_string);
     bool flag = remaining_string.at(0) == '1';
@@ -120,9 +132,7 @@ std::string decode_part(std::string& remaining_string) {
                         list_string += std::to_string(decode_varbit(remaining_string));
                     }
                     if (first_in_list) first_in_list = false;
-                    else if (subtype == "11") {
-                        return "part_decode_error";
-                    }
+                    
                 }
             }
             list_string += "]";
@@ -176,7 +186,9 @@ std::string decode_bitstring(std::string& bitstring) {
                 }
             }
             else if (value_type == "11") {
-                return output_string;
+                bitstring = bitstring.substr(3);
+                std::string value = decode_string(bitstring);
+                output_string += "\"" + value + "\"";
             }
             else {
                 bitstring = bitstring.substr(1);
